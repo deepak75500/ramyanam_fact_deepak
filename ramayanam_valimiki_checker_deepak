@@ -15,7 +15,13 @@ texts = df["translation"].astype(str).tolist()
 
 # === Load Fast Model ===
 
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
+
+model_id = "google/flan-t5-xl"  # Or "meta-llama/Llama-3-8B-Instruct" if available via HF
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map="auto")
 # === Get Most Relevant Verse for Statement ===
 def get_best_match(statement):
     from sentence_transformers import SentenceTransformer
@@ -58,19 +64,17 @@ def gpt_verifier(statements):
 
     for i, stmt in enumerate(statements):
             best_text= get_best_match(stmt)
-            # Convert the PyTorch tensor index to a Python integer
-            prompt = (
-                f"Statement: {stmt}  "+"only refer properly valmiki ramayanam  refer please say correctly take time to refer"+f"Reference from Valmiki Ramayanam quotes :\n{best_text}\n\n"
-                f"understand deeply and answer correcly and is the statement completely true or false?\n take own time and give properly"
-            )
+            qa_pipeline = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                web_search=False
-            )
+            context = f"{best_text}"
 
-            result = response.choices[0].message.content.strip().lower()
+            question = str(stmt)
+
+            prompt = f"Answer the question based on the passage:\n\nContext: {context}\n\nQuestion: {question} say true or false only"
+            response = qa_pipeline(prompt, max_new_tokens=50, truncation=True)
+            print(response[0]["generated_text"])
+
+            result = str(response[0]["generated_text"]).strip().lower()
             prediction = "True" if "true" in result and "false" not in result else "False"
 
 
@@ -84,12 +88,12 @@ if __name__ == "__main__":
     gpt_df = pd.read_csv("Valmiki Ramanaya Verses - Final Evaluation.csv")
     verified_statements = gpt_df["Statement"].dropna().tolist()
 
-    print(" Running hybrid verification (MiniLM + g4f)...")
+    print("🔍 Running hybrid verification (MiniLM + g4f)...")
     preds = gpt_verifier(verified_statements)
 
     # Save results
     gpt_df = gpt_df.dropna(subset=["Statement"]).copy()
     gpt_df["Prediction"] = preds
     gpt_df.to_csv("Ramayanam_Hybrid_Verified.csv", index=False)
-    print("\nSaved: 'Ramayanam_Hybrid_Verified.csv'")   
+    print("\n✅ Saved: 'Ramayanam_Hybrid_Verified.csv'")   
 
