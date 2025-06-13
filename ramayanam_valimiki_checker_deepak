@@ -1,6 +1,7 @@
 import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer, util
+from g4f.client import Client
 import os, time
 
 # === Config ===
@@ -32,7 +33,7 @@ def get_best_match(statement):
     texts = df['translation'].dropna().tolist()
 
     # Load the powerful yet fast model
-    model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+    model = SentenceTransformer("all-MiniLM-L6-v2")
 
     # Encode all translations
     corpus_embeddings = model.encode(texts, convert_to_numpy=True, batch_size=32, show_progress_bar=True)
@@ -45,7 +46,7 @@ def get_best_match(statement):
     similarities = cosine_similarity(query_embedding, corpus_embeddings)[0]
 
     # Get top 55 most similar indices
-    top_indices = np.argsort(similarities)[-55:][::-1]
+    top_indices = np.argsort(similarities)[-75:][::-1]
     top_sentences = [texts[i] for i in top_indices]
 
     # Combine into a single string
@@ -87,12 +88,12 @@ if __name__ == "__main__":
     gpt_df = pd.read_csv("Valmiki Ramanaya Verses - Final Evaluation.csv")
     verified_statements = gpt_df["Statement"].dropna().tolist()
 
-    print(" Running hybrid verification (MiniLM + g4f)...")
+    print("Running hybrid verification (MiniLM + g4f)...")
     preds = gpt_verifier(verified_statements)
 
     # Save results
     gpt_df = gpt_df.dropna(subset=["Statement"]).copy()
     gpt_df["Prediction"] = preds
     gpt_df.to_csv("Ramayanam_Hybrid_Verified.csv", index=False)
-    print("\n Saved: 'Ramayanam_Hybrid_Verified.csv'")   
+    print("\nSaved: 'Ramayanam_Hybrid_Verified.csv'")   
 
