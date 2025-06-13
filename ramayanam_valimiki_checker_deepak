@@ -1,7 +1,6 @@
 import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer, util
-from g4f.client import Client
 import os, time
 
 # === Config ===
