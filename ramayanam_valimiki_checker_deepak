@@ -1,0 +1,95 @@
+import pandas as pd
+import torch
+from sentence_transformers import SentenceTransformer, util
+from g4f.client import Client
+import os, time
+
+# === Config ===
+
+SLEEP_SECONDS = 8
+
+# === Load Ramayanam Data ===
+df = pd.read_excel("merged_sorted_by_chapter_verse.xlsx")
+df = df.dropna(subset=["translation"]).reset_index(drop=True)
+texts = df["translation"].astype(str).tolist()
+
+# === Load Fast Model ===
+
+
+# === Get Most Relevant Verse for Statement ===
+def get_best_match(statement):
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np
+
+    # Load and clean the dataset again
+    df = pd.read_excel("merged_sorted_by_chapter_verse.xlsx")
+    texts = df['translation'].dropna().tolist()
+
+    # Load the powerful yet fast model
+    model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+
+    # Encode all translations
+    corpus_embeddings = model.encode(texts, convert_to_numpy=True, batch_size=32, show_progress_bar=True)
+
+    # Encode the input sentence
+    input_sentence = statement
+    query_embedding = model.encode([input_sentence], convert_to_numpy=True)
+
+    # Compute cosine similarity
+    similarities = cosine_similarity(query_embedding, corpus_embeddings)[0]
+
+    # Get top 55 most similar indices
+    top_indices = np.argsort(similarities)[-55:][::-1]
+    top_sentences = [texts[i] for i in top_indices]
+
+    # Combine into a single string
+    grouped_string = "\n\n".join(top_sentences)
+
+    # Return preview and count
+    return grouped_string[:500]
+
+
+# === g4f Verifier with Best Match ===
+# === g4f Verifier with Best Match ===
+def gpt_verifier(statements):
+    client = Client()
+    predictions = []
+
+    for i, stmt in enumerate(statements):
+            best_text= get_best_match(stmt)
+            # Convert the PyTorch tensor index to a Python integer
+            prompt = (
+                f"Statement: {stmt}  "+"only refer properly valmiki ramayanam  refer please say correctly take time to refer"+f"Reference from Valmiki Ramayanam quotes :\n{best_text}\n\n"
+                f"understand deeply and answer correcly and is the statement completely true or false?\n take own time and give properly"
+            )
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                web_search=False
+            )
+
+            result = response.choices[0].message.content.strip().lower()
+            prediction = "True" if "true" in result and "false" not in result else "False"
+
+
+            predictions.append(prediction)
+            print(f"[{i+1}/{len(statements)}] Prediction: {prediction} -> {stmt[:50]}...")
+            time.sleep(SLEEP_SECONDS)
+
+    return predictions# === MAIN EXECUTION ===
+if __name__ == "__main__":
+    # Load the evaluation dataset
+    gpt_df = pd.read_csv("Valmiki Ramanaya Verses - Final Evaluation.csv")
+    verified_statements = gpt_df["Statement"].dropna().tolist()
+
+    print(" Running hybrid verification (MiniLM + g4f)...")
+    preds = gpt_verifier(verified_statements)
+
+    # Save results
+    gpt_df = gpt_df.dropna(subset=["Statement"]).copy()
+    gpt_df["Prediction"] = preds
+    gpt_df.to_csv("Ramayanam_Hybrid_Verified.csv", index=False)
+    print("\nSaved: 'Ramayanam_Hybrid_Verified.csv'")   
+
