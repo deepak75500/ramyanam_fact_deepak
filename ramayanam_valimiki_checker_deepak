@@ -88,12 +88,12 @@ if __name__ == "__main__":
     gpt_df = pd.read_csv("Valmiki Ramanaya Verses - Final Evaluation.csv")
     verified_statements = gpt_df["Statement"].dropna().tolist()
 
-    print("🔍 Running hybrid verification (MiniLM + g4f)...")
+    print(" Running hybrid verification (MiniLM + g4f)...")
     preds = gpt_verifier(verified_statements)
 
     # Save results
     gpt_df = gpt_df.dropna(subset=["Statement"]).copy()
     gpt_df["Prediction"] = preds
     gpt_df.to_csv("Ramayanam_Hybrid_Verified.csv", index=False)
-    print("\n✅ Saved: 'Ramayanam_Hybrid_Verified.csv'")   
+    print("\n Saved: 'Ramayanam_Hybrid_Verified.csv'")   
 
