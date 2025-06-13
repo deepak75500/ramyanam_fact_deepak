@@ -18,7 +18,7 @@ texts = df["translation"].astype(str).tolist()
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
 
-model_id = "google/flan-t5-xl"  # Or "meta-llama/Llama-3-8B-Instruct" if available via HF
+model_id = "google/flan-t5-xl"  
 
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_id, device_map="auto")
