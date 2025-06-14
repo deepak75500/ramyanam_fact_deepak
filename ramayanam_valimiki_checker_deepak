@@ -46,7 +46,7 @@ def get_best_match(statement):
     similarities = cosine_similarity(query_embedding, corpus_embeddings)[0]
 
     # Get top 55 most similar indices
-    top_indices = np.argsort(similarities)[-75:][::-1]
+    top_indices = np.argsort(similarities)[-500:][::-1]
     top_sentences = [texts[i] for i in top_indices]
 
     # Combine into a single string
